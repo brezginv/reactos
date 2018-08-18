@@ -14,6 +14,8 @@
 #define NDEBUG_USBHUB_ENUM
 #include "dbg_uhub.h"
 
+#define BOOT_FROM_USB  1
+
 NTSTATUS
 NTAPI
 USBH_IrpCompletion(IN PDEVICE_OBJECT DeviceObject,
@@ -1063,6 +1065,15 @@ USBH_FdoQueryBusRelations(IN PUSBHUB_FDO_EXTENSION HubExtension,
 
     if (!(HubExtension->HubFlags & USBHUB_FDO_FLAG_DO_ENUMERATION))
     {
+#if BOOT_FROM_USB
+        {
+            LARGE_INTEGER Interval;
+            Status = STATUS_SUCCESS;
+            IoInvalidateDeviceRelations(HubExtension->LowerPDO, BusRelations);
+            Interval.QuadPart = -10000LL * 1000; // 1 sec.
+            KeDelayExecutionThread(KernelMode, FALSE, &Interval);
+        }
+#endif
         DPRINT_ENUM("USBH_FdoQueryBusRelations: Skip enumeration\n");
         goto RelationsWorker;
     }
@@ -1585,6 +1596,17 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
                                      0,
                                      L"USB\\Vid_0000&Pid_0000");
             }
+            else if (USBH_IsVidPidFromBlackList(DeviceDescriptor->idVendor,
+                                                DeviceDescriptor->idProduct,
+                                                DeviceDescriptor->bcdDevice))
+            {
+                RtlStringCbPrintfExW(Buffer,
+                                     Remaining,
+                                     NULL,
+                                     &Remaining,
+                                     0,
+                                     L"USB\\Vid_0000&Pid_0000");
+            }
             else
             {
                 RtlStringCbPrintfExW(Buffer,
@@ -1597,7 +1619,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
                                      DeviceDescriptor->idProduct);
             }
 
-            Length = sizeof(Buffer) - (Remaining - sizeof(UNICODE_NULL));
+            Length = sizeof(Buffer) - (Remaining - 2 * sizeof(UNICODE_NULL));
 
             Id = ExAllocatePoolWithTag(PagedPool, Length, USB_HUB_TAG);
 
@@ -1617,6 +1639,17 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
             {
                 DPRINT("USBH_PdoQueryId: USBHUB_PDO_FLAG_INIT_PORT_FAILED\n");
 
+                RtlStringCbPrintfExW(Buffer,
+                                     Remaining,
+                                     NULL,
+                                     &Remaining,
+                                     0,
+                                     L"USB\\UNKNOWN");
+            }
+            else if (USBH_IsVidPidFromBlackList(DeviceDescriptor->idVendor,
+                                                DeviceDescriptor->idProduct,
+                                                DeviceDescriptor->bcdDevice))
+            {
                 RtlStringCbPrintfExW(Buffer,
                                      Remaining,
                                      NULL,
@@ -1649,7 +1682,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
                                      DeviceDescriptor->idProduct);
             }
 
-            Length = sizeof(Buffer) - (Remaining - sizeof(UNICODE_NULL));
+            Length = sizeof(Buffer) - (Remaining - 2 * sizeof(UNICODE_NULL));
 
             Id = ExAllocatePoolWithTag(PagedPool, Length, USB_HUB_TAG);
 
@@ -1662,7 +1695,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
 
             if (PortExtension->PortPdoFlags & USBHUB_PDO_FLAG_INIT_PORT_FAILED)
             {
-                DPRINT("USBH_PdoQueryId: BusQueryInstanceID - %S\n", Id);
+                DPRINT("USBH_PdoQueryId: BusQueryHardwareID - %S\n", Id);
             }
             else
             {
@@ -1678,6 +1711,17 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
             {
                 DPRINT("USBH_PdoQueryId: USBHUB_PDO_FLAG_INIT_PORT_FAILED\n");
 
+                RtlStringCbPrintfExW(Buffer,
+                                     Remaining,
+                                     NULL,
+                                     &Remaining,
+                                     0,
+                                     L"USB\\UNKNOWN");
+            }
+            else if (USBH_IsVidPidFromBlackList(DeviceDescriptor->idVendor,
+                                                DeviceDescriptor->idProduct,
+                                                DeviceDescriptor->bcdDevice))
+            {
                 RtlStringCbPrintfExW(Buffer,
                                      Remaining,
                                      NULL,
@@ -1766,7 +1810,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
                                      InterfaceDescriptor->bInterfaceClass);
             }
 
-            Length = sizeof(Buffer) - (Remaining - sizeof(UNICODE_NULL));
+            Length = sizeof(Buffer) - (Remaining - 2 * sizeof(UNICODE_NULL));
 
             Id = ExAllocatePoolWithTag(PagedPool, Length, USB_HUB_TAG);
 
@@ -1779,7 +1823,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
 
             if (PortExtension->PortPdoFlags & USBHUB_PDO_FLAG_INIT_PORT_FAILED)
             {
-                DPRINT("USBH_PdoQueryId: BusQueryInstanceID - %S\n", Id);
+                DPRINT("USBH_PdoQueryId: BusQueryHardwareID - %S\n", Id);
             }
             else
             {
@@ -1823,7 +1867,7 @@ USBH_PdoQueryId(IN PUSBHUB_PORT_PDO_EXTENSION PortExtension,
                  }
             }
 
-            DPRINT("USBH_PdoQueryId: BusQueryInstanceID - %S\n", Id);
+            DPRINT("USBH_PdoQueryId: BusQueryHardwareID - %S\n", Id);
             break;
 
         default:
