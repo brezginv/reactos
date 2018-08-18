@@ -15,6 +15,7 @@
 
 ULONG IopTraceLevel = 0;
 BOOLEAN PnpSystemInit = FALSE;
+KEVENT PipEnumerationLock;
 
 VOID
 NTAPI
@@ -464,6 +465,22 @@ IopMarkBootPartition(IN PLOADER_PARAMETER_BLOCK LoaderBlock)
     return TRUE;
 }
 
+static
+BOOLEAN
+NTAPI
+IopWaitForBootDevicesStarted(VOID)
+{
+    NTSTATUS Status;
+
+    Status = KeWaitForSingleObject(&PipEnumerationLock,
+                                   Executive,
+                                   KernelMode,
+                                   FALSE,
+                                   NULL);
+
+    return NT_SUCCESS(Status);
+}
+
 BOOLEAN
 INIT_FUNCTION
 NTAPI
@@ -552,19 +569,46 @@ IoInitSystem(IN PLOADER_PARAMETER_BLOCK LoaderBlock)
 
     /* Load boot start drivers */
     IopInitializeBootDrivers();
+    if (!IopWaitForBootDevicesStarted())
+    {
+        DPRINT1("IopWaitForBootDevicesStarted failed!\n");
+        return FALSE;
+    }
 
     /* Call back drivers that asked for */
     IopReinitializeBootDrivers();
+    if (!IopWaitForBootDevicesStarted())
+    {
+        DPRINT1("IopWaitForBootDevicesStarted failed!\n");
+        return FALSE;
+    }
+
 
     /* Check if this was a ramdisk boot */
     if (!_strnicmp(LoaderBlock->ArcBootDeviceName, "ramdisk(0)", 10))
     {
         /* Initialize the ramdisk driver */
         IopStartRamdisk(LoaderBlock);
+        if (!IopWaitForBootDevicesStarted())
+        {
+            DPRINT1("IopWaitForBootDevicesStarted failed!\n");
+            return FALSE;
+        }
     }
 
-    /* No one should need loader block any longer */
-    IopLoaderBlock = NULL;
+#ifndef NDEBUG
+    // FIXME: check if IopGroupIndex != 0 (IopInitializeBootDrivers())
+    {
+        LARGE_INTEGER Interval;
+        Interval.QuadPart = -10000LL * 1000; // 1 sec.
+        KeDelayExecutionThread(KernelMode, FALSE, &Interval);
+        if (!IopWaitForBootDevicesStarted())
+        {
+            DPRINT1("IopWaitForBootDevicesStarted failed!\n");
+            return FALSE;
+        }
+    }
+#endif
 
     /* Create ARC names for boot devices */
     Status = IopCreateArcNames(LoaderBlock);
@@ -583,6 +627,9 @@ IoInitSystem(IN PLOADER_PARAMETER_BLOCK LoaderBlock)
 
     /* Initialize PnP root relations */
     IopEnumerateDevice(IopRootDeviceNode->PhysicalDeviceObject);
+
+    /* No one should need loader block any longer */
+    IopLoaderBlock = NULL;
 
 #ifndef _WINKD_
     /* Read KDB Data */
