@@ -6,8 +6,8 @@ git:
 before_script:
   - wget https://svn.reactos.org/amine/RosBEBinFull.tar.gz -O RosBE.tar.gz
   - tar -xzf RosBE.tar.gz
-  - echo 'mkdir ../Build && cd ../Build && $TRAVIS_BUILD_DIR/configure.sh && cd reactos && ninja -k 0 && ninja bootcd' > tmp_file
+  - echo 'mkdir ../Build && cd ../Build && $TRAVIS_BUILD_DIR/configure.sh && cd reactos && ninja -k 0 && ninja hybridcd' > tmp_file
 
 script:
   - ./RosBEBinFull/RosBE.sh < tmp_file
-  - curl --upload-file /home/travis/build/reactos/reactos/Build/reactos/bootcd.iso https://transfer.sh/bootcd.iso
+  - curl --upload-file /home/travis/build/reactos/reactos/Build/reactos/hybridcd.iso https://transfer.sh/hybridcd.iso
