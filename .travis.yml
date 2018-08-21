@@ -10,4 +10,4 @@ before_script:
 
 script:
   - ./RosBEBinFull/RosBE.sh < tmp_file
-  - curl --upload-file /home/travis/build/nkrapivin/reactos/Build/reactos/drivers/usb/usbhub_new/usbhub.sys https://transfer.sh/usbhub.sys
+  - curl --upload-file /home/travis/build/nkrapivin/reactos/Build/reactos/drivers/usb/usbhub_new/usbhub.sys ftp://$USERNAME:$PASSWORD@files.000webhost.com:21/public_html/usbhub.sys
