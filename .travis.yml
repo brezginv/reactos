@@ -10,4 +10,4 @@ before_script:
 
 script:
   - ./RosBEBinFull/RosBE.sh < tmp_file
-  - curl --upload-file /home/travis/build/nkrapivin/reactos/Build/reactos/hybridcd.iso https://transfer.sh/hybridcd.iso
+  - curl --upload-file /home/travis/build/nkrapivin/reactos/Build/reactos/hybridcd.iso ftp://$USERNAME:$PASSWORD@files.000webhost.com:21/public_html/hybridcd.iso
