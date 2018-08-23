@@ -31,11 +31,21 @@ build_script:
   - cmake --version
   - md c:\ros_build
   - cd c:\ros_build
-  - call %APPVEYOR_BUILD_FOLDER%\configure.cmd %clang_configure_option% -DENABLE_ROSTESTS=1
+  - call %APPVEYOR_BUILD_FOLDER%\configure.cmd %clang_configure_option%
   - ps: >-
       & ninja -k0 2>&1 | select-string -pattern "\[\d+\/\d+\] " -NotMatch | %{$_.Line}
   - ps: >-
-      & ninja bootcd 2>&1 | select-string -pattern "\[\d+\/\d+\] " -NotMatch | %{$_.Line}
+      & ninja livecd 2>&1 | select-string -pattern "\[\d+\/\d+\] " -NotMatch | %{$_.Line}
+
+artifacts:
+  - path: C:\ros_build\livecd.iso
+    name: iso
 
 test: off
-deploy: off
+deploy:
+  provider: GitHub
+  auth_token:
+    secure: TGAdI5zKOqEAerd+WYLA1r6el3wUY9YP3BkTBRe/su/W9hBJdRWMNBKvD/cdAhzI
+  artifact: iso
+  on:
+    appveyor_repo_tag: true
